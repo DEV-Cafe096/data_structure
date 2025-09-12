@@ -1,1 +1,9 @@
-.mainComments
+# Arquivo de código com comentários extras
+MainComments.c
+
+# Arquivos compilados (executáveis do Windows)
+*.exe
+main.exe
+
+# Pasta de configuração do VSCode
+.vscode/
