@@ -1,199 +1,255 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h> // Necessário para a função clock()
 
-// Estrutura de Item
-typedef struct Item
-{
-    char name[50];
+// Estrutura para um componente da torre
+typedef struct Component {
+    char name[30];
     char type[20];
-    int quantity;
-} Item;
+    int priority;
+} Component;
 
-// Vetor de struct Item
-Item inventory[10];
-int numItems = 0;
+// Variáveis globais para o armazém de componentes
+Component tower[20];
+int componentCount = 0;
 
-// Funcao para inserir item
-void insertItem(Item item)
-{
-    for (int i = 0; i < numItems; i++)
-    {
-        if (strcmp(inventory[i].name, item.name) == 0)
-        {
-            inventory[i].quantity += item.quantity;
-            // MENSAGEM CORRIGIDA
-            printf(">> Quantidade do item '%s' atualizada!\n", item.name);
-            return;
-        }
-    }
-    if (numItems < 10)
-    {
-        inventory[numItems] = item;
-        numItems++;
-        // MENSAGEM CORRIGIDA
-        printf(">> Item '%s' inserido com sucesso!\n", item.name);
-    }
-    else
-    {
-        printf(">> Mochila cheia! Nao foi possivel inserir o item.\n");
-    }
+// Ponteiros para contadores de desempenho
+long long comparison_count = 0;
+double execution_time = 0.0;
+
+
+// --- FUNÇÕES BÁSICAS ---
+
+void clearInputBuffer() {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF);
 }
 
-// Funcao para remover item
-void removeItem(char name[])
-{
-    int index = -1;
-    for (int i = 0; i < numItems; i++)
-    {
-        if (strcmp(inventory[i].name, name) == 0)
-        {
-            index = i;
-            break;
-        }
-    }
-    if (index != -1)
-    {
-        for (int i = index; i < numItems - 1; i++)
-        {
-            inventory[i] = inventory[i + 1];
-        }
-        numItems--;
-        printf(">> Item '%s' removido com sucesso!\n", name);
-    }
-    else
-    {
-        printf(">> Item '%s' nao encontrado!\n", name);
-    }
-}
-
-// Funcao para exibir inventario
-void showInventory()
-{
-    printf("\n-----Inventario Atual-----\n");
-    if (numItems == 0)
-    {
-        printf("Mochila vazia!\n");
+void displayComponents() {
+    printf("\n---------- COMPONENTES DA TORRE ----------\n");
+    if (componentCount == 0) {
+        printf("Nenhum componente cadastrado.\n");
         return;
     }
-    for (int i = 0; i < numItems; i++)
-    {
-        printf("%d. %s (Tipo: %s, Quantidade: %d)\n", i + 1, inventory[i].name, inventory[i].type, inventory[i].quantity);
+    // Mostra os componentes com nome, tipo e prioridade
+    for (int i = 0; i < componentCount; i++) {
+        printf("%d. %-20s (Tipo: %-15s, Prioridade: %d)\n", i + 1, tower[i].name, tower[i].type, tower[i].priority);
     }
-    printf("---------------------------\n");
+    printf("----------------------------------------\n");
 }
 
-// Funcao para buscar item
-Item *searchItem(char name[])
-{
-    for (int i = 0; i < numItems; i++)
-    {
-        if (strcmp(inventory[i].name, name) == 0)
-        {
-            return &inventory[i];
+void addComponent(Component component) {
+    if (componentCount < 20) {
+        tower[componentCount] = component;
+        componentCount++;
+        printf(">> Componente '%s' adicionado com sucesso!\n", component.name);
+    } else {
+        printf(">> Armazem cheio! Nao foi possivel adicionar o componente.\n");
+    }
+}
+
+
+// --- ALGORITMOS DE ORDENAÇÃO ---
+
+// Bubble Sort para ordenar por NOME
+void bubbleSortByName() {
+    Component temp;
+    comparison_count = 0;
+    for (int i = 0; i < componentCount - 1; i++) {
+        for (int j = 0; j < componentCount - i - 1; j++) {
+            comparison_count++; // Conta cada comparação
+            if (strcmp(tower[j].name, tower[j + 1].name) > 0) {
+                temp = tower[j];
+                tower[j] = tower[j + 1];
+                tower[j + 1] = temp;
+            }
+        }
+    }
+    printf(">> Componentes ordenados por NOME com %lld comparacoes.\n", comparison_count);
+}
+
+// Insertion Sort para ordenar por TIPO
+void insertionSortByType() {
+    int i, j;
+    Component key;
+    comparison_count = 0;
+    for (i = 1; i < componentCount; i++) {
+        key = tower[i];
+        j = i - 1;
+        while (j >= 0) {
+            comparison_count++; // Conta cada comparação
+            if (strcmp(tower[j].type, key.type) > 0) {
+                tower[j + 1] = tower[j];
+                j = j - 1;
+            } else {
+                break; // Para o while se o elemento já está na posição correta
+            }
+        }
+        tower[j + 1] = key;
+    }
+    printf(">> Componentes ordenados por TIPO com %lld comparacoes.\n", comparison_count);
+}
+
+// Selection Sort para ordenar por PRIORIDADE
+void selectionSortByPriority() {
+    int i, j, min_idx;
+    Component temp;
+    comparison_count = 0;
+    for (i = 0; i < componentCount - 1; i++) {
+        min_idx = i;
+        for (j = i + 1; j < componentCount; j++) {
+            comparison_count++; // Conta cada comparação
+            if (tower[j].priority < tower[min_idx].priority) {
+                min_idx = j;
+            }
+        }
+        if (min_idx != i) {
+            temp = tower[min_idx];
+            tower[min_idx] = tower[i];
+            tower[i] = temp;
+        }
+    }
+    printf(">> Componentes ordenados por PRIORIDADE com %lld comparacoes.\n", comparison_count);
+}
+
+
+// --- ALGORITMOS DE BUSCA ---
+
+// Busca Sequencial por NOME
+Component* linearSearchByName(char name[], int* comparisons) {
+    *comparisons = 0;
+    for (int i = 0; i < componentCount; i++) {
+        (*comparisons)++;
+        if (strcmp(tower[i].name, name) == 0) {
+            return &tower[i];
         }
     }
     return NULL;
 }
 
-// Funcao para exibir o menu principal
-void showMenu()
-{
-    printf("+==========================================+\n");
-    printf("|            SURVIVAL KIT MENU             |\n");
-    printf("+==========================================+\n");
-    printf("| 1. Adicionar Item                        |\n");
-    printf("| 2. Remover Item                          |\n");
-    printf("| 3. Listar Itens                          |\n");
-    printf("| 4. Buscar Item                           |\n");
-    printf("| 0. Sair                                  |\n");
-    printf("+==========================================+\n");
+// Busca Binária por NOME (requer vetor ordenado por nome)
+Component* binarySearchByName(char name[], int* comparisons) {
+    int start = 0;
+    int end = componentCount - 1;
+    *comparisons = 0;
+    while (start <= end) {
+        int middle = start + (end - start) / 2;
+        (*comparisons)++;
+        int res = strcmp(name, tower[middle].name);
+        if (res == 0) return &tower[middle];
+        if (res > 0) start = middle + 1;
+        else end = middle - 1;
+    }
+    return NULL;
+}
+
+
+// --- INTERFACE DO USUÁRIO ---
+
+void displayMenu(int currentCount) {
+    printf("\n+-----------------------------------------------+\n");
+    printf("|          MONTAGEM DA TORRE DE FUGA          |\n");
+    printf("+-----------------------------------------------+\n");
+    printf("| Componentes no armazem: %-2d/20              |\n", currentCount);
+    printf("+--- OPERACOES ---------------------------------+\n");
+    printf("| 1. Adicionar Componente                       |\n");
+    printf("| 2. Listar Componentes                         |\n");
+    printf("+--- ORDENACAO (mostra comparacoes) ------------+\n");
+    printf("| 3. Ordenar por Nome (Bubble Sort)             |\n");
+    printf("| 4. Ordenar por Tipo (Insertion Sort)          |\n");
+    printf("| 5. Ordenar por Prioridade (Selection Sort)    |\n");
+    printf("+--- BUSCAS (mostra comparacoes) ---------------+\n");
+    printf("| 6. Buscar por Nome (Sequencial)               |\n");
+    printf("| 7. Buscar por Nome (Binaria - requer ordem.) |\n");
+    printf("+-----------------------------------------------+\n");
+    printf("| 0. Sair                                       |\n");
+    printf("+-----------------------------------------------+\n");
     printf(" Escolha uma opcao: ");
 }
 
-// Funcao Principal
-int main()
-{
+
+// --- FUNÇÃO PRINCIPAL ---
+int main() {
     int choice;
-    Item tempItem;
+    Component tempComponent;
     char searchName[50];
+    int comparisons = 0;
+    clock_t start_t, end_t;
 
-    while (1)
-    {
-        // Limpa a tela
+    while (1) {
         system("cls || clear");
-
-        showMenu();
-
+        displayMenu(componentCount);
         scanf("%d", &choice);
+        clearInputBuffer();
 
-        int c;
-        while ((c = getchar()) != '\n' && c != EOF)
-            ; // Limpa o buffer
-
-        switch (choice)
-        {
-        case 1:
-            printf("Digite o nome do item: ");
-            fgets(tempItem.name, 50, stdin);
-            tempItem.name[strcspn(tempItem.name, "\n")] = 0;
-
-            printf("Digite o tipo do item: ");
-            fgets(tempItem.type, 20, stdin);
-            tempItem.type[strcspn(tempItem.type, "\n")] = 0;
-
-            printf("Digite a quantidade: ");
-            scanf("%d", &tempItem.quantity);
-            while ((c = getchar()) != '\n' && c != EOF)
-                ;
-
-            insertItem(tempItem);
-            // Pausa para o usuário ver a mensagem antes do loop recomeçar
-            printf("\nPressione Enter para continuar...");
-            getchar();
-            break;
-        case 2:
-            printf("Digite o nome do item a ser removido: ");
-            fgets(searchName, 50, stdin);
-            searchName[strcspn(searchName, "\n")] = 0;
-            removeItem(searchName);
-
-            printf("\nPressione Enter para continuar...");
-            getchar();
-            break;
-        case 3:
-            showInventory();
-            printf("\nPressione Enter para continuar...");
-            getchar();
-            break;
-        case 4:
-            printf("Digite o nome do item a ser buscado: ");
-            fgets(searchName, 50, stdin);
-            searchName[strcspn(searchName, "\n")] = 0;
-
-            Item *foundItem = searchItem(searchName);
-            if (foundItem != NULL)
-            {
-                printf("\n>> Item Encontrado! <<\n");
-                printf("Nome: %s\nTipo: %s\nQuantidade: %d\n",
-                        foundItem->name, foundItem->type, foundItem->quantity);
-            }
-            else
-            {
-                printf(">> Item '%s' nao encontrado.\n", searchName);
-            }
-
-            printf("\nPressione Enter para continuar...");
-            getchar();
-            break;
-        case 0:
-            printf("Saindo do programa...\n");
-            return 0;
-        default:
-            printf("Opcao invalida. Tente novamente.\n");
-            printf("\nPressione Enter para continuar...");
-            getchar();
+        switch (choice) {
+            case 1: // Adicionar
+                printf("Nome do componente: ");
+                fgets(tempComponent.name, 30, stdin);
+                tempComponent.name[strcspn(tempComponent.name, "\n")] = 0;
+                printf("Tipo (controle, suporte, propulsao): ");
+                fgets(tempComponent.type, 20, stdin);
+                tempComponent.type[strcspn(tempComponent.type, "\n")] = 0;
+                printf("Prioridade (1-10): ");
+                scanf("%d", &tempComponent.priority);
+                clearInputBuffer();
+                addComponent(tempComponent);
+                break;
+            case 2: // Listar
+                displayComponents();
+                break;
+            case 3: // Ordenar por Nome
+                start_t = clock();
+                bubbleSortByName();
+                end_t = clock();
+                execution_time = (double)(end_t - start_t) / CLOCKS_PER_SEC;
+                printf("   Tempo de execucao: %f segundos\n", execution_time);
+                displayComponents();
+                break;
+            case 4: // Ordenar por Tipo
+                start_t = clock();
+                insertionSortByType();
+                end_t = clock();
+                execution_time = (double)(end_t - start_t) / CLOCKS_PER_SEC;
+                printf("   Tempo de execucao: %f segundos\n", execution_time);
+                displayComponents();
+                break;
+            case 5: // Ordenar por Prioridade
+                start_t = clock();
+                selectionSortByPriority();
+                end_t = clock();
+                execution_time = (double)(end_t - start_t) / CLOCKS_PER_SEC;
+                printf("   Tempo de execucao: %f segundos\n", execution_time);
+                displayComponents();
+                break;
+            case 6: // Busca Sequencial
+                printf("Nome do componente (Busca Sequencial): ");
+                fgets(searchName, 50, stdin);
+                searchName[strcspn(searchName, "\n")] = 0;
+                Component* foundCompSeq = linearSearchByName(searchName, &comparisons);
+                printf(">> Busca Sequencial realizada com %d comparacoes.\n", comparisons);
+                if (foundCompSeq) printf("   Encontrado: %s (Tipo: %s, Prioridade: %d)\n", foundCompSeq->name, foundCompSeq->type, foundCompSeq->priority);
+                else printf(">> Componente '%s' nao encontrado.\n", searchName);
+                break;
+            case 7: // Busca Binária
+                printf("AVISO: A busca binaria so funciona com componentes ordenados por nome!\n");
+                printf("Nome do componente (Busca Binaria): ");
+                fgets(searchName, 50, stdin);
+                searchName[strcspn(searchName, "\n")] = 0;
+                Component* foundCompBin = binarySearchByName(searchName, &comparisons);
+                printf(">> Busca Binaria realizada com %d comparacoes.\n", comparisons);
+                if (foundCompBin) printf("   Encontrado: %s (Tipo: %s, Prioridade: %d)\n", foundCompBin->name, foundCompBin->type, foundCompBin->priority);
+                else printf(">> Componente '%s' nao encontrado.\n", searchName);
+                break;
+            case 0: // Sair
+                printf("Saindo do programa...\n");
+                return 0;
+            default:
+                printf("Opcao invalida. Tente novamente.\n");
         }
+        printf("\nPressione Enter para continuar...");
+        getchar();
     }
     return 0;
 }
